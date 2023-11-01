@@ -10,10 +10,10 @@ spec:
   template:
     metadata:
       labels:
-        app: app
+        app: flask-app
     spec:
       containers:
-      - name: flask
+      - name: app
         image: app
         ports:
         - containerPort: 8080

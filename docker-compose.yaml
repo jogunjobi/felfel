@@ -7,6 +7,9 @@ services:
     environment:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - REDIS_USERNAME=admin
+      - REDIS_PASSWORD=password
+      - REDIS_DB=0
   redis:
     image: redis:alpine
     environment:

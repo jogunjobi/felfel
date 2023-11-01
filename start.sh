@@ -1,36 +1,28 @@
 #!/bin/bash
 
-# Start minikube
-minikube start --force
+# Build image
+docker build -t app .
 
-# Enable ingress
-minikube addons enable ingress
+# Load image into minikube
+minikube image load app
 
-# Create Kubernetes objects
-kubectl apply -f deployment.yaml
-kubectl apply -f service.yaml
-kubectl apply -f ingress.yaml
+# Apply Kubernetes YAML
+kubectl apply -f k8s.yaml
 
-# Wait for pod to be ready
-kubectl wait --for=condition=Ready pod -l app=app
+# Port forward Prometheus
+kubectl port-forward svc/prometheus 9090:9090 &
 
-# Verify app is running
-curl $(minikube ip)
-
-# Install Helm
-curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
-chmod 700 get_helm.sh
-./get_helm.sh
-
-# Install Prometheus using Helm
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm install prometheus prometheus-community/prometheus
-
-# Configure Prometheus to scrape /metrics
-kubectl port-forward deploy/prometheus-server 9090:9090 &
-export POD_NAME=$(kubectl get pods -l "app=app" -o jsonpath="{.items[0].metadata.name}")
-kubectl port-forward $POD_NAME 8080:8080 &
-curl -X POST http://localhost:9090/-/reload
-
-# View metrics in Prometheus UI
-open http://localhost:9090
+# Configure Prometheus to scrape app metrics
+cat <<EOF | kubectl apply -f -
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: app-monitor
+spec:
+  selector:
+    matchLabels:
+      app: counter
+  endpoints:
+  - port: metrics
+    interval: 15s
+EOF
